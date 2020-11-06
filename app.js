@@ -36,6 +36,7 @@ app.use('/graphql', graphqlHTTP({
             title: String!
             description: String!
             price: Float!
+            creator: String!
         }
 
         input EventUser {
@@ -77,11 +78,33 @@ app.use('/graphql', graphqlHTTP({
         // Création des events
         createEvent: (args) => {
             const event = new Events(args.eventInput);
+            let createdEvent;
 
             return event.save().then(result => {
-                return {...result._doc}
-            }).catch(err => {
-                throw err;
+                createdEvent = result._doc;
+
+                return Users.findById(createdEvent.creator);
+            })
+            .then(user => {
+                if (!user) {
+                    throw new Error("L'utilisateur n'existe pas !")
+                }
+
+                user.createdEvent.push(event);
+
+                return user.save();
+            })
+            .then(result => {
+                return createdEvent;
+            })
+            .catch(err => {
+                throw err
+            })
+            .catch(err => {
+                throw err
+            })
+            .catch(err => {
+                throw err
             })
         },
 
