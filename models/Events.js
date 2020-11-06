@@ -15,11 +15,17 @@ const event = new Schema({
         type: Number,
         required: true,
     },
+    creator: {
+        type: Schema.Types.ObjectId,
+        ref: 'Users'
+    },
     date: {
         type: Date,
         required: true,
         default: new Date().toISOString()
     }
+}, {
+    timestamps: true
 })
 
 module.exports = mongoose.model('Events', event);

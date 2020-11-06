@@ -4,8 +4,10 @@ const {graphqlHTTP} = require('express-graphql');
 const {buildSchema} = require('graphql');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const Events = require('./models/Events');
+const Users = require('./models/Users');
 
 dotenv.config();
 
@@ -24,10 +26,21 @@ app.use('/graphql', graphqlHTTP({
             date: String!
         }
 
+        type User {
+            _id: ID!
+            email: String!
+            password: String
+        }
+
         input EventInput {
             title: String!
             description: String!
             price: Float!
+        }
+
+        input EventUser {
+            email: String!
+            password: String
         }
 
         type RootQuery {
@@ -36,6 +49,7 @@ app.use('/graphql', graphqlHTTP({
          
         type RootMutation {
             createEvent(eventInput: EventInput): Event
+            createUser(eventUser: EventUser): User
         }
 
         schema {
@@ -44,17 +58,23 @@ app.use('/graphql', graphqlHTTP({
         }
     `),
     rootValue: {
+        // Récupération des events
         events: (limit) => {
             return Events.aggregate([
                 {
                     $match: {}
+                },
+                {
+                    $limit: parseInt(limit.limit)
                 }
             ]).then(result => {
-                return result
+                return [...result]
             }).catch(err => {
                 throw err
             })
         },
+
+        // Création des events
         createEvent: (args) => {
             const event = new Events(args.eventInput);
 
@@ -62,6 +82,27 @@ app.use('/graphql', graphqlHTTP({
                 return {...result._doc}
             }).catch(err => {
                 throw err;
+            })
+        },
+
+        // Enregistrement du user
+        createUser: (args) => {
+            return bcrypt.hash(`CRYPT${args.eventUser.password}CRYPT`, 10).then(hash => {
+                args.eventUser.password = hash;
+
+                const user = new Users(args.eventUser);
+    
+                return user.save();
+                
+            })
+            .then(result => {
+                return {...result._doc}
+            })
+            .catch(err => {
+                throw err
+            })
+            .catch(err => {
+                throw err
             })
         }
     },
