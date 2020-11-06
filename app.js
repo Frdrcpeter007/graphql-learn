@@ -2,10 +2,14 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const {graphqlHTTP} = require('express-graphql');
 const {buildSchema} = require('graphql');
+const dotenv = require('dotenv');
+const mongoose = require('mongoose');
+
+const Events = require('./models/Events');
+
+dotenv.config();
 
 const app = express();
-
-var events = [];
 
 app.use(bodyParser.json());
 
@@ -27,7 +31,7 @@ app.use('/graphql', graphqlHTTP({
         }
 
         type RootQuery {
-            events: [Event!]!
+            events(limit: Int!): [Event!]!
         }
          
         type RootMutation {
@@ -40,23 +44,35 @@ app.use('/graphql', graphqlHTTP({
         }
     `),
     rootValue: {
-        events: () => {
-            return events;
+        events: (limit) => {
+            return Events.aggregate([
+                {
+                    $match: {}
+                }
+            ]).then(result => {
+                return result
+            }).catch(err => {
+                throw err
+            })
         },
         createEvent: (args) => {
-            let event = args.eventInput;
-            
-            event._id = (events.length + 1).toString();
-            event.date = new Date().toISOString();
+            const event = new Events(args.eventInput);
 
-            events.push(event);
-
-            return event;
+            return event.save().then(result => {
+                return {...result._doc}
+            }).catch(err => {
+                throw err;
+            })
         }
     },
     graphiql: true
 }))
 
-app.listen(3000, () => {
-    console.info(">>> Server started...")
-});
+mongoose.connect(`mongodb+srv://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@graphql.znwja.mongodb.net/${process.env.MONGO_DB}?retryWrites=true&w=majority`, {useNewUrlParser: true, useUnifiedTopology: true}).then(() => {
+    console.log(">>> Connexion à la base de données réussi...")
+    app.listen(3000, () => {
+        console.info(">>> Server started...")
+    });
+}).catch(err => {
+    console.error(err)
+})
