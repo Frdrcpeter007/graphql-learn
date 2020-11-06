@@ -87,7 +87,14 @@ app.use('/graphql', graphqlHTTP({
 
         // Enregistrement du user
         createUser: (args) => {
-            return bcrypt.hash(`CRYPT${args.eventUser.password}CRYPT`, 10).then(hash => {
+            return Users.findOne({email: args.eventUser.email}).then(user => {
+                if (user) {
+                    throw new Error('Cet adresse email est déjà utilisé')
+                }
+
+                return bcrypt.hash(`CRYPT${args.eventUser.password}CRYPT`, 10)
+            })
+            .then(hash => {
                 args.eventUser.password = hash;
 
                 const user = new Users(args.eventUser);
@@ -96,7 +103,11 @@ app.use('/graphql', graphqlHTTP({
                 
             })
             .then(result => {
+                delete result._doc.password;
                 return {...result._doc}
+            })
+            .catch(err => {
+                throw err
             })
             .catch(err => {
                 throw err
